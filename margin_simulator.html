@@ -313,6 +313,7 @@
   <div class="table-wrap">
     <table>
       <thead><tr>
+        <th>レバ×逆数</th>
         <th>純資産ダメージ</th>
         <th>ポジション下落率</th>
         <th>損失額</th>
@@ -463,8 +464,14 @@
         : isHigh
           ? '<span class="badge badge-warn">高危険</span>'
           : '';
+      const levInv = isBankrupt
+        ? '−'
+        : leverage > 0
+          ? (leverage / (1 - s.rate / 100)).toFixed(2)
+          : '−';
       tbody.innerHTML += `
         <tr class="${trClass}">
+          <td>${levInv}</td>
           <td>${s.label}${badge}</td>
           <td>${fmtPct(dropPct)}</td>
           <td>${fmt(loss)}</td>
