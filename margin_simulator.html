@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>信用取引 レバレッジ・損失シミュレーター</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #ffffff;
+      --bg2:       #f5f5f7;
+      --bg3:       #ebebed;
+      --text:      #1d1d1f;
+      --text2:     #6e6e73;
+      --text3:     #aeaeb2;
+      --border:    #d2d2d7;
+      --danger:    #d93025;
+      --danger-bg: #fce8e6;
+      --warn:      #b45309;
+      --warn-bg:   #fef3c7;
+      --info:      #1a73e8;
+      --info-bg:   #e8f0fe;
+      --success:   #188038;
+      --accent:    #1d1d1f;
+      --radius:    8px;
+      --radius-lg: 12px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:        #1c1c1e;
+        --bg2:       #2c2c2e;
+        --bg3:       #3a3a3c;
+        --text:      #f5f5f7;
+        --text2:     #aeaeb2;
+        --text3:     #6e6e73;
+        --border:    #3a3a3c;
+        --danger:    #ff6b6b;
+        --danger-bg: #3a1c1c;
+        --warn:      #fbbf24;
+        --warn-bg:   #3a2e10;
+        --info:      #60a5fa;
+        --info-bg:   #1e2f4a;
+        --success:   #4ade80;
+        --accent:    #f5f5f7;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 2rem;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 2rem 0;
+    }
+
+    /* 入力カード */
+    .input-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 1.5rem;
+    }
+    .input-card {
+      background: var(--bg2);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+    }
+    .input-card label {
+      display: block;
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 6px;
+    }
+    .input-card input[type="number"] {
+      width: 100%;
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 10px;
+      appearance: textfield;
+    }
+    .input-card input[type="number"]:focus {
+      outline: none;
+      border-color: var(--info);
+      box-shadow: 0 0 0 3px rgba(26,115,232,0.15);
+    }
+    .hint {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 4px;
+    }
+
+    /* サマリー */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 1.5rem;
+    }
+    .metric-card {
+      background: var(--bg2);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .metric-card .mlabel {
+      font-size: 12px;
+      color: var(--text2);
+      margin-bottom: 4px;
+    }
+    .metric-card .mvalue {
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .metric-card .msub {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 3px;
+    }
+
+    /* テーブル */
+    .table-wrap {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      overflow-x: auto;
+      margin-bottom: 1.5rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 440px;
+    }
+    th {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text2);
+      padding: 10px 14px;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+      white-space: nowrap;
+    }
+    th:first-child { text-align: left; }
+    td {
+      padding: 10px 14px;
+      font-size: 13px;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+      white-space: nowrap;
+    }
+    td:first-child { text-align: left; font-weight: 500; }
+    tr:last-child td { border-bottom: none; }
+    tr.danger td { color: var(--danger); }
+    tr.warn   td { color: var(--warn); }
+
+    /* バッジ */
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 20px;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .badge-danger { background: var(--danger-bg); color: var(--danger); }
+    .badge-warn   { background: var(--warn-bg);   color: var(--warn); }
+    .badge-info   { background: var(--info-bg);   color: var(--info); }
+
+    /* 個別ポジション */
+    .pos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .pos-card {
+      background: var(--bg2);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+    }
+    .pos-card label {
+      display: block;
+      font-size: 11px;
+      color: var(--text2);
+      margin-bottom: 5px;
+    }
+    .pos-card input[type="number"] {
+      width: 100%;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 5px 9px;
+      appearance: textfield;
+    }
+    .pos-card input[type="number"]:focus {
+      outline: none;
+      border-color: var(--info);
+      box-shadow: 0 0 0 3px rgba(26,115,232,0.15);
+    }
+
+    /* ボタン */
+    .btn-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 8px 22px;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.75; }
+
+    .save-status {
+      font-size: 12px;
+      color: var(--text3);
+      transition: color 0.3s;
+    }
+    .save-status.saved { color: var(--success); }
+
+    .drop-loss {
+      display: block;
+      font-size: 11px;
+      color: var(--danger);
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>信用取引 レバレッジ・損失シミュレーター</h1>
+  <p class="subtitle">入力値はブラウザのキャッシュ（localStorage）に自動保存されます。</p>
+
+  <!-- ===== 資産入力 ===== -->
+  <div class="section-title">資産・ポジション入力</div>
+  <div class="input-grid">
+    <div class="input-card">
+      <label>純資産合計</label>
+      <input type="number" id="netTotal" min="0" step="1" placeholder="例: 340">
+      <div class="hint">万円（現物株時価含む、掛目なし）</div>
+    </div>
+    <div class="input-card">
+      <label>うち現物株評価額</label>
+      <input type="number" id="stock" min="0" step="1" placeholder="例: 300">
+      <div class="hint">万円（純資産合計に含まれる分）</div>
+    </div>
+    <div class="input-card">
+      <label>ポジション総額（建値）</label>
+      <input type="number" id="position" min="0" step="1" placeholder="例: 800">
+      <div class="hint">万円</div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 現状サマリー ===== -->
+  <div class="section-title">現状サマリー</div>
+  <div class="summary-grid" id="summary"></div>
+
+  <hr class="divider">
+
+  <!-- ===== 下落シナリオ ===== -->
+  <div class="section-title">下落シナリオ（純資産へのダメージ別）</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>純資産ダメージ</th>
+        <th>ポジション下落率</th>
+        <th>損失額</th>
+        <th>残余純資産</th>
+      </tr></thead>
+      <tbody id="scenario-body"></tbody>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 追証ライン ===== -->
+  <div class="section-title">追証ライン（委託保証金維持率）</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>維持率水準</th>
+        <th>ポジション下落率</th>
+        <th>損失額</th>
+        <th>残余純資産</th>
+      </tr></thead>
+      <tbody id="margin-body"></tbody>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 個別ポジション ===== -->
+  <div class="section-title">個別ポジション 下落シミュレーター</div>
+  <div class="pos-grid">
+    <div class="pos-card"><label>ポジション①</label><input type="number" class="pos-val" placeholder="0" min="0" step="0.1"><div class="hint">万円</div></div>
+    <div class="pos-card"><label>ポジション②</label><input type="number" class="pos-val" placeholder="0" min="0" step="0.1"><div class="hint">万円</div></div>
+    <div class="pos-card"><label>ポジション③</label><input type="number" class="pos-val" placeholder="0" min="0" step="0.1"><div class="hint">万円</div></div>
+    <div class="pos-card"><label>ポジション④</label><input type="number" class="pos-val" placeholder="0" min="0" step="0.1"><div class="hint">万円</div></div>
+    <div class="pos-card"><label>ポジション⑤</label><input type="number" class="pos-val" placeholder="0" min="0" step="0.1"><div class="hint">万円</div></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn" id="calc-pos-btn">計算する</button>
+    <span class="save-status" id="save-status"></span>
+  </div>
+  <div id="pos-result"></div>
+
+</div><!-- /container -->
+
+<script>
+  const STORAGE_KEY = 'margin-sim-v1';
+  const DROP_RATES  = [3, 5, 8, 10, 20];
+
+  function fmt(n) {
+    return (Math.round(n * 10) / 10).toLocaleString('ja-JP') + '万円';
+  }
+  function fmtPct(n) {
+    return n.toFixed(2) + '%';
+  }
+
+  // ===== localStorage 保存 / 復元 =====
+  function saveAll() {
+    const data = {
+      netTotal : document.getElementById('netTotal').value,
+      stock    : document.getElementById('stock').value,
+      position : document.getElementById('position').value,
+      posVals  : [...document.querySelectorAll('.pos-val')].map(el => el.value),
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      showSaved();
+    } catch(e) { /* quota超過などは無視 */ }
+  }
+
+  function loadAll() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        document.getElementById('netTotal').value = data.netTotal ?? '';
+        document.getElementById('stock').value    = data.stock    ?? '';
+        document.getElementById('position').value = data.position ?? '';
+        const posInputs = document.querySelectorAll('.pos-val');
+        (data.posVals || []).forEach((v, i) => { if (posInputs[i]) posInputs[i].value = v; });
+        setStatus('前回の入力を復元しました', false);
+        setTimeout(() => setStatus('', false), 2500);
+      }
+    } catch(e) { /* 無視 */ }
+    calc();
+  }
+
+  function showSaved() {
+    setStatus('✓ 自動保存済み', true);
+    setTimeout(() => setStatus('', false), 2000);
+  }
+
+  function setStatus(msg, isSaved) {
+    const el = document.getElementById('save-status');
+    el.textContent = msg;
+    el.className = 'save-status' + (isSaved ? ' saved' : '');
+  }
+
+  // ===== メイン計算 =====
+  function calc() {
+    const netTotal = parseFloat(document.getElementById('netTotal').value) || 0;
+    const stock    = parseFloat(document.getElementById('stock').value)    || 0;
+    const pos      = parseFloat(document.getElementById('position').value) || 0;
+
+    const netAsset = netTotal - stock * 0.2;
+    const leverage = (pos > 0 && netAsset > 0) ? pos / netAsset : 0;
+
+    // サマリー
+    document.getElementById('summary').innerHTML = `
+      <div class="metric-card">
+        <div class="mlabel">純資産額（掛目調整後）</div>
+        <div class="mvalue">${fmt(netAsset)}</div>
+        <div class="msub">純資産合計 − 現物×0.2</div>
+      </div>
+      <div class="metric-card">
+        <div class="mlabel">実質レバレッジ</div>
+        <div class="mvalue">${leverage.toFixed(2)}倍</div>
+        <div class="msub">ポジション ÷ 純資産</div>
+      </div>
+      <div class="metric-card">
+        <div class="mlabel">ポジション総額</div>
+        <div class="mvalue">${fmt(pos)}</div>
+        <div class="msub">建値ベース</div>
+      </div>`;
+
+    // 下落シナリオ
+    const scenarios = [
+      { label: '-20%',         rate: 20  },
+      { label: '-40%',         rate: 40  },
+      { label: '-50%',         rate: 50  },
+      { label: '-60%',         rate: 60  },
+      { label: '-70%',         rate: 70  },
+      { label: '-100%（理論破綻）', rate: 100 },
+    ];
+    const tbody = document.getElementById('scenario-body');
+    tbody.innerHTML = '';
+    scenarios.forEach(s => {
+      const dropPct   = leverage > 0 ? s.rate / leverage : 0;
+      const loss      = pos * dropPct / 100;
+      const remaining = netAsset - loss;
+      const isBankrupt = s.rate === 100;
+      const isHigh     = s.rate >= 70;
+      const trClass = isBankrupt ? 'danger' : isHigh ? 'warn' : '';
+      const badge   = isBankrupt
+        ? '<span class="badge badge-danger">破綻水準</span>'
+        : isHigh
+          ? '<span class="badge badge-warn">高危険</span>'
+          : '';
+      tbody.innerHTML += `
+        <tr class="${trClass}">
+          <td>${s.label}${badge}</td>
+          <td>${fmtPct(dropPct)}</td>
+          <td>${fmt(loss)}</td>
+          <td>${fmt(remaining)}</td>
+        </tr>`;
+    });
+
+    // 追証ライン
+    const marginLevels = [
+      { label: '30%（余裕あり）', pct: 30 },
+      { label: '25%（注意）',     pct: 25 },
+      { label: '20%（追証発生）', pct: 20 },
+    ];
+    const mbody = document.getElementById('margin-body');
+    mbody.innerHTML = '';
+    marginLevels.forEach(m => {
+      if (pos === 0 || netAsset === 0) {
+        mbody.innerHTML += `<tr><td>${m.label}</td><td colspan="3" style="color:var(--text3)">計算不可</td></tr>`;
+        return;
+      }
+      const lossForLevel = netAsset - (m.pct / 100) * pos;
+      const dropPct      = (lossForLevel / pos) * 100;
+      const remaining    = netAsset - lossForLevel;
+      const isMarginCall = m.pct === 20;
+      const isMid        = m.pct === 25;
+      const trClass = isMarginCall ? 'danger' : isMid ? 'warn' : '';
+      const badge   = isMarginCall
+        ? '<span class="badge badge-danger">追証</span>'
+        : isMid
+          ? '<span class="badge badge-warn">要注意</span>'
+          : '<span class="badge badge-info">参考</span>';
+      const currentMaint = netAsset / pos * 100;
+      if (currentMaint <= m.pct) {
+        mbody.innerHTML += `
+          <tr class="${trClass}">
+            <td>${m.label}${badge}</td>
+            <td colspan="3" style="color:var(--danger);font-size:12px">
+              ⚠ 現在既にこの水準を下回っています（現在維持率 ${currentMaint.toFixed(1)}%）
+            </td>
+          </tr>`;
+        return;
+      }
+      mbody.innerHTML += `
+        <tr class="${trClass}">
+          <td>${m.label}${badge}</td>
+          <td>${fmtPct(dropPct)}</td>
+          <td>${fmt(lossForLevel)}</td>
+          <td>${fmt(remaining)}</td>
+        </tr>`;
+    });
+  }
+
+  // ===== 個別ポジション下落 =====
+  function calcPos() {
+    const inputs    = document.querySelectorAll('.pos-val');
+    const labels    = ['①','②','③','④','⑤'];
+    const positions = [];
+    inputs.forEach((el, i) => {
+      const v = parseFloat(el.value);
+      if (v > 0) positions.push({ label: `ポジション${labels[i]}`, val: v });
+    });
+
+    const resultEl = document.getElementById('pos-result');
+    if (positions.length === 0) {
+      resultEl.innerHTML = `<p style="color:var(--text3);font-size:13px;padding:8px 0">ポジションが入力されていません。</p>`;
+      return;
+    }
+
+    let headerCells = '<th>下落率</th>';
+    positions.forEach(p => {
+      headerCells += `<th>${p.label}<br><span style="font-weight:400;font-size:11px">${fmt(p.val)}</span></th>`;
+    });
+    if (positions.length > 1) headerCells += '<th>合計損失</th>';
+
+    let rows = '';
+    DROP_RATES.forEach(rate => {
+      let cells     = `<td>-${rate}%</td>`;
+      let totalLoss = 0;
+      positions.forEach(p => {
+        const loss  = p.val * rate / 100;
+        const after = p.val - loss;
+        totalLoss  += loss;
+        cells += `<td>${fmt(after)}<span class="drop-loss">−${fmt(loss)}</span></td>`;
+      });
+      if (positions.length > 1) cells += `<td style="color:var(--danger);font-weight:600">−${fmt(totalLoss)}</td>`;
+      rows += `<tr>${cells}</tr>`;
+    });
+
+    resultEl.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr>${headerCells}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // ===== イベント =====
+  let saveTimer = null;
+  function onInput() {
+    calc();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveAll, 800);
+  }
+
+  document.querySelectorAll('#netTotal, #stock, #position').forEach(el => el.addEventListener('input', onInput));
+  document.querySelectorAll('.pos-val').forEach(el => el.addEventListener('input', () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveAll, 800);
+  }));
+  document.getElementById('calc-pos-btn').addEventListener('click', () => { calcPos(); saveAll(); });
+
+  // 起動時ロード
+  loadAll();
+</script>
+</body>
+</html>
