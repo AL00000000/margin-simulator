@@ -343,11 +343,11 @@
   <!-- ===== 個別ポジション ===== -->
   <div class="section-title">個別ポジション 下落シミュレーター</div>
   <div class="pos-grid">
-    <div class="pos-card"><label>ポジション①</label><input type="number" class="pos-val" placeholder="0" min="0" step="0.1"><div class="hint">万円</div></div>
-    <div class="pos-card"><label>ポジション②</label><input type="number" class="pos-val" placeholder="0" min="0" step="0.1"><div class="hint">万円</div></div>
-    <div class="pos-card"><label>ポジション③</label><input type="number" class="pos-val" placeholder="0" min="0" step="0.1"><div class="hint">万円</div></div>
-    <div class="pos-card"><label>ポジション④</label><input type="number" class="pos-val" placeholder="0" min="0" step="0.1"><div class="hint">万円</div></div>
-    <div class="pos-card"><label>ポジション⑤</label><input type="number" class="pos-val" placeholder="0" min="0" step="0.1"><div class="hint">万円</div></div>
+    <div class="pos-card"><label>ポジション①</label><input type="number" class="pos-val" placeholder="0" min="0" step="1"><div class="hint">円</div></div>
+    <div class="pos-card"><label>ポジション②</label><input type="number" class="pos-val" placeholder="0" min="0" step="1"><div class="hint">円</div></div>
+    <div class="pos-card"><label>ポジション③</label><input type="number" class="pos-val" placeholder="0" min="0" step="1"><div class="hint">円</div></div>
+    <div class="pos-card"><label>ポジション④</label><input type="number" class="pos-val" placeholder="0" min="0" step="1"><div class="hint">円</div></div>
+    <div class="pos-card"><label>ポジション⑤</label><input type="number" class="pos-val" placeholder="0" min="0" step="1"><div class="hint">円</div></div>
   </div>
   <div class="btn-row">
     <button class="btn" id="calc-pos-btn">計算する</button>
@@ -363,6 +363,9 @@
 
   function fmt(n) {
     return (Math.round(n * 10) / 10).toLocaleString('ja-JP') + '万円';
+  }
+  function fmtYen(n) {
+    return Math.round(n).toLocaleString('ja-JP') + '円';
   }
   function fmtPct(n) {
     return n.toFixed(2) + '%';
@@ -532,7 +535,7 @@
 
     let headerCells = '<th>下落率</th>';
     positions.forEach(p => {
-      headerCells += `<th>${p.label}<br><span style="font-weight:400;font-size:11px">${fmt(p.val)}</span></th>`;
+      headerCells += `<th>${p.label}<br><span style="font-weight:400;font-size:11px">${fmtYen(p.val)}</span></th>`;
     });
     if (positions.length > 1) headerCells += '<th>合計損失</th>';
 
@@ -544,9 +547,9 @@
         const loss  = p.val * rate / 100;
         const after = p.val - loss;
         totalLoss  += loss;
-        cells += `<td>${fmt(after)}<span class="drop-loss">−${fmt(loss)}</span></td>`;
+        cells += `<td>${fmtYen(after)}<span class="drop-loss">−${fmtYen(loss)}</span></td>`;
       });
-      if (positions.length > 1) cells += `<td style="color:var(--danger);font-weight:600">−${fmt(totalLoss)}</td>`;
+      if (positions.length > 1) cells += `<td style="color:var(--danger);font-weight:600">−${fmtYen(totalLoss)}</td>`;
       rows += `<tr>${cells}</tr>`;
     });
 
