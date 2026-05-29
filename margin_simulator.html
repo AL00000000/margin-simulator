@@ -404,15 +404,14 @@
     const stock    = parseFloat(document.getElementById('stock').value)    || 0;
     const pos      = parseFloat(document.getElementById('position').value) || 0;
 
-    const netAsset = netTotal - stock * 0.2;
-    const leverage = (pos > 0 && netAsset > 0) ? pos / netAsset : 0;
+    const leverage = (pos > 0 && netTotal > 0) ? pos / netTotal : 0;
 
     // サマリー
     document.getElementById('summary').innerHTML = `
       <div class="metric-card">
-        <div class="mlabel">純資産額（掛目調整後）</div>
-        <div class="mvalue">${fmt(netAsset)}</div>
-        <div class="msub">純資産合計 − 現物×0.2</div>
+        <div class="mlabel">純資産合計</div>
+        <div class="mvalue">${fmt(netTotal)}</div>
+        <div class="msub">掛目調整なし</div>
       </div>
       <div class="metric-card">
         <div class="mlabel">実質レバレッジ</div>
