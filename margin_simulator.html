@@ -314,6 +314,7 @@
     <table>
       <thead><tr>
         <th>実質レバレッジ</th>
+        <th>維持率</th>
         <th>純資産ダメージ</th>
         <th>ポジション下落率</th>
         <th>損失額</th>
@@ -439,33 +440,39 @@
 
     // 下落シナリオ
     const scenarios = [
-      { label: '-10%',         rate: 10  },
-      { label: '-20%',         rate: 20  },
-      { label: '-40%',         rate: 40  },
-      { label: '-50%',         rate: 50  },
-      { label: '-100%（理論破綻）', rate: 100 },
+      { label: '-10%',  rate: 10  },
+      { label: '-20%',  rate: 20  },
+      { label: '-40%',  rate: 40  },
+      { label: '-50%',  rate: 50  },
+      { label: '-100%', rate: 100 },
     ];
     const tbody = document.getElementById('scenario-body');
     tbody.innerHTML = '';
     scenarios.forEach(s => {
-      const dropPct   = leverage > 0 ? s.rate / leverage : 0;
-      const loss      = pos * dropPct / 100;
-      const remaining = netTotal - loss;
-      const isBankrupt = s.rate === 100;
-      const isHigh     = s.rate >= 70;
-      const trClass = isBankrupt ? 'danger' : isHigh ? 'warn' : '';
-      const badge   = isBankrupt
-        ? '<span class="badge badge-danger">破綻水準</span>'
-        : '';
-      const levInv = isBankrupt
+      const dropPct      = leverage > 0 ? s.rate / leverage : 0;
+      const loss         = pos * dropPct / 100;
+      const remaining    = netTotal - loss;
+      const isBankrupt   = s.rate === 100;
+      const trClass      = isBankrupt ? 'danger' : '';
+      const levInv       = isBankrupt
         ? '−'
         : leverage > 0
           ? (leverage / (1 - s.rate / 100)).toFixed(2)
           : '−';
+      const scenarioStockVal = stock * (1 - dropPct / 100);
+      const scenarioMaint    = (marginPos > 0)
+        ? (cash + scenarioStockVal * 0.8 - marginPos) / marginPos * 100
+        : null;
+      const maintStyle = scenarioMaint === null ? ''
+        : scenarioMaint < 20 ? ' style="color:var(--danger)"'
+        : scenarioMaint < 25 ? ' style="color:var(--warn)"'
+        : '';
+      const maintText = scenarioMaint === null ? '−' : scenarioMaint.toFixed(1) + '%';
       tbody.innerHTML += `
         <tr class="${trClass}">
           <td>${levInv}</td>
-          <td>${s.label}${badge}</td>
+          <td${maintStyle}>${maintText}</td>
+          <td>${s.label}</td>
           <td>${fmtPct(dropPct)}</td>
           <td>${fmt(loss)}</td>
           <td>${fmt(remaining)}</td>
