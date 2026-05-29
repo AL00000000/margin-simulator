@@ -313,7 +313,7 @@
   <div class="table-wrap">
     <table>
       <thead><tr>
-        <th>レバ×逆数</th>
+        <th>実質レバレッジ</th>
         <th>純資産ダメージ</th>
         <th>ポジション下落率</th>
         <th>損失額</th>
@@ -455,7 +455,7 @@
     scenarios.forEach(s => {
       const dropPct   = leverage > 0 ? s.rate / leverage : 0;
       const loss      = pos * dropPct / 100;
-      const remaining = netAsset - loss;
+      const remaining = netTotal - loss;
       const isBankrupt = s.rate === 100;
       const isHigh     = s.rate >= 70;
       const trClass = isBankrupt ? 'danger' : isHigh ? 'warn' : '';
