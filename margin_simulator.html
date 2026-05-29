@@ -404,7 +404,15 @@
     const stock    = parseFloat(document.getElementById('stock').value)    || 0;
     const pos      = parseFloat(document.getElementById('position').value) || 0;
 
-    const leverage = (pos > 0 && netTotal > 0) ? pos / netTotal : 0;
+    const leverage   = (pos > 0 && netTotal > 0) ? pos / netTotal : 0;
+    const cash       = netTotal - stock;
+    const marginPos  = pos - netTotal;
+    const maintRate  = (marginPos > 0) ? (cash + stock * 0.8 - marginPos) / marginPos * 100 : null;
+    const maintColor = maintRate === null ? 'var(--text)'
+                     : maintRate < 20    ? 'var(--danger)'
+                     : maintRate < 25    ? 'var(--warn)'
+                     : 'var(--text)';
+    const maintText  = maintRate === null ? '−' : maintRate.toFixed(1) + '%';
 
     // サマリー
     document.getElementById('summary').innerHTML = `
@@ -422,6 +430,11 @@
         <div class="mlabel">ポジション総額</div>
         <div class="mvalue">${fmt(pos)}</div>
         <div class="msub">建値ベース</div>
+      </div>
+      <div class="metric-card">
+        <div class="mlabel">信用維持率</div>
+        <div class="mvalue" style="color:${maintColor}">${maintText}</div>
+        <div class="msub">（現金+現物×0.8−信用建玉）÷ 信用建玉</div>
       </div>`;
 
     // 下落シナリオ
