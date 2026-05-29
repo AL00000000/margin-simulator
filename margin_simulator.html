@@ -461,9 +461,7 @@
       const trClass = isBankrupt ? 'danger' : isHigh ? 'warn' : '';
       const badge   = isBankrupt
         ? '<span class="badge badge-danger">破綻水準</span>'
-        : isHigh
-          ? '<span class="badge badge-warn">高危険</span>'
-          : '';
+        : '';
       const levInv = isBankrupt
         ? '−'
         : leverage > 0
