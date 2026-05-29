@@ -325,22 +325,6 @@
 
   <hr class="divider">
 
-  <!-- ===== 追証ライン ===== -->
-  <div class="section-title">追証ライン（委託保証金維持率）</div>
-  <div class="table-wrap">
-    <table>
-      <thead><tr>
-        <th>維持率水準</th>
-        <th>ポジション下落率</th>
-        <th>損失額</th>
-        <th>残余純資産</th>
-      </tr></thead>
-      <tbody id="margin-body"></tbody>
-    </table>
-  </div>
-
-  <hr class="divider">
-
   <!-- ===== 個別ポジション ===== -->
   <div class="section-title">個別ポジション 下落シミュレーター</div>
   <div class="pos-grid">
@@ -477,49 +461,6 @@
         </tr>`;
     });
 
-    // 追証ライン
-    const marginLevels = [
-      { label: '30%（余裕あり）', pct: 30 },
-      { label: '25%（注意）',     pct: 25 },
-      { label: '20%（追証発生）', pct: 20 },
-    ];
-    const mbody = document.getElementById('margin-body');
-    mbody.innerHTML = '';
-    marginLevels.forEach(m => {
-      if (pos === 0 || netAsset === 0) {
-        mbody.innerHTML += `<tr><td>${m.label}</td><td colspan="3" style="color:var(--text3)">計算不可</td></tr>`;
-        return;
-      }
-      const lossForLevel = netAsset - (m.pct / 100) * pos;
-      const dropPct      = (lossForLevel / pos) * 100;
-      const remaining    = netAsset - lossForLevel;
-      const isMarginCall = m.pct === 20;
-      const isMid        = m.pct === 25;
-      const trClass = isMarginCall ? 'danger' : isMid ? 'warn' : '';
-      const badge   = isMarginCall
-        ? '<span class="badge badge-danger">追証</span>'
-        : isMid
-          ? '<span class="badge badge-warn">要注意</span>'
-          : '<span class="badge badge-info">参考</span>';
-      const currentMaint = netAsset / pos * 100;
-      if (currentMaint <= m.pct) {
-        mbody.innerHTML += `
-          <tr class="${trClass}">
-            <td>${m.label}${badge}</td>
-            <td colspan="3" style="color:var(--danger);font-size:12px">
-              ⚠ 現在既にこの水準を下回っています（現在維持率 ${currentMaint.toFixed(1)}%）
-            </td>
-          </tr>`;
-        return;
-      }
-      mbody.innerHTML += `
-        <tr class="${trClass}">
-          <td>${m.label}${badge}</td>
-          <td>${fmtPct(dropPct)}</td>
-          <td>${fmt(lossForLevel)}</td>
-          <td>${fmt(remaining)}</td>
-        </tr>`;
-    });
   }
 
   // ===== 個別ポジション下落 =====
