@@ -408,7 +408,7 @@
     const leverage   = (pos > 0 && netTotal > 0) ? pos / netTotal : 0;
     const cash       = netTotal - stock;
     const marginPos  = pos - netTotal;
-    const maintRate  = (marginPos > 0) ? (cash + stock * 0.8 - marginPos) / marginPos * 100 : null;
+    const maintRate  = (marginPos > 0) ? (cash + stock * 0.8) / marginPos * 100 : null;
     const maintColor = maintRate === null ? 'var(--text)'
                      : maintRate < 20    ? 'var(--danger)'
                      : maintRate < 25    ? 'var(--warn)'
@@ -435,7 +435,7 @@
       <div class="metric-card">
         <div class="mlabel">信用維持率</div>
         <div class="mvalue" style="color:${maintColor}">${maintText}</div>
-        <div class="msub">（現金+現物×0.8−信用建玉）÷ 信用建玉</div>
+        <div class="msub">（現金+現物×0.8）÷ 信用建玉</div>
       </div>`;
 
     // 下落シナリオ
@@ -459,9 +459,10 @@
         : leverage > 0
           ? (leverage / (1 - s.rate / 100)).toFixed(2)
           : '−';
-      const scenarioStockVal = stock * (1 - dropPct / 100);
-      const scenarioMaint    = (marginPos > 0)
-        ? (cash + scenarioStockVal * 0.8 - marginPos) / marginPos * 100
+      const marginLoss    = marginPos * dropPct / 100;
+      const stockLoss     = stock * dropPct / 100;
+      const scenarioMaint = (marginPos > 0)
+        ? (cash + stock * 0.8 - stockLoss * 0.8) / marginPos * 100
         : null;
       const maintStyle = scenarioMaint === null ? ''
         : scenarioMaint < 20 ? ' style="color:var(--danger)"'
