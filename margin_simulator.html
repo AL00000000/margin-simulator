@@ -444,6 +444,7 @@
         <div class="mlabel">信用維持率</div>
         <div class="mvalue" style="color:${maintColor}">${maintText}</div>
         <div class="msub">（現金+現物×0.8）÷ 信用建玉</div>
+        <div class="msub">(${Math.round(cash)}+${Math.round(stock)}×0.8)÷${Math.round(marginPos)}</div>
       </div>`;
 
     // 下落シナリオ
