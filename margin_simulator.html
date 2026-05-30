@@ -298,6 +298,11 @@
       <input type="number" id="position" min="0" step="1" placeholder="例: 800">
       <div class="hint">万円</div>
     </div>
+    <div class="input-card">
+      <label>信用含み益</label>
+      <input type="number" id="creditGain" step="1" placeholder="例: 50">
+      <div class="hint">万円（含み損の場合はマイナス入力）</div>
+    </div>
   </div>
 
   <hr class="divider">
@@ -360,10 +365,11 @@
   // ===== localStorage 保存 / 復元 =====
   function saveAll() {
     const data = {
-      netTotal : document.getElementById('netTotal').value,
-      stock    : document.getElementById('stock').value,
-      position : document.getElementById('position').value,
-      posVals  : [...document.querySelectorAll('.pos-val')].map(el => el.value),
+      netTotal   : document.getElementById('netTotal').value,
+      stock      : document.getElementById('stock').value,
+      position   : document.getElementById('position').value,
+      creditGain : document.getElementById('creditGain').value,
+      posVals    : [...document.querySelectorAll('.pos-val')].map(el => el.value),
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -376,9 +382,10 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
-        document.getElementById('netTotal').value = data.netTotal ?? '';
-        document.getElementById('stock').value    = data.stock    ?? '';
-        document.getElementById('position').value = data.position ?? '';
+        document.getElementById('netTotal').value   = data.netTotal   ?? '';
+        document.getElementById('stock').value      = data.stock      ?? '';
+        document.getElementById('position').value   = data.position   ?? '';
+        document.getElementById('creditGain').value = data.creditGain ?? '';
         const posInputs = document.querySelectorAll('.pos-val');
         (data.posVals || []).forEach((v, i) => { if (posInputs[i]) posInputs[i].value = v; });
         setStatus('前回の入力を復元しました', false);
@@ -401,13 +408,14 @@
 
   // ===== メイン計算 =====
   function calc() {
-    const netTotal = parseFloat(document.getElementById('netTotal').value) || 0;
-    const stock    = parseFloat(document.getElementById('stock').value)    || 0;
-    const pos      = parseFloat(document.getElementById('position').value) || 0;
+    const netTotal    = parseFloat(document.getElementById('netTotal').value)    || 0;
+    const stock       = parseFloat(document.getElementById('stock').value)       || 0;
+    const pos         = parseFloat(document.getElementById('position').value)    || 0;
+    const creditGain  = parseFloat(document.getElementById('creditGain').value)  || 0;
 
     const leverage   = (pos > 0 && netTotal > 0) ? pos / netTotal : 0;
     const cash       = netTotal - stock;
-    const marginPos  = pos - netTotal;
+    const marginPos  = pos - (netTotal - creditGain);
     const maintRate  = (marginPos > 0) ? (cash + stock * 0.8) / marginPos * 100 : null;
     const maintColor = maintRate === null ? 'var(--text)'
                      : maintRate < 20    ? 'var(--danger)'
@@ -535,7 +543,7 @@
     saveTimer = setTimeout(saveAll, 800);
   }
 
-  document.querySelectorAll('#netTotal, #stock, #position').forEach(el => el.addEventListener('input', onInput));
+  document.querySelectorAll('#netTotal, #stock, #position, #creditGain').forEach(el => el.addEventListener('input', onInput));
   document.querySelectorAll('.pos-val').forEach(el => el.addEventListener('input', () => {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveAll, 800);
