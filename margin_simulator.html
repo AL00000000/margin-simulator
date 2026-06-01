@@ -537,6 +537,14 @@
   }
 
   // ===== イベント =====
+  function evalExpr(str) {
+    if (!/^[\d\s\+\-\*\/\.]+$/.test(str.trim())) return null;
+    try {
+      const result = Function('"use strict"; return (' + str + ')')();
+      return isFinite(result) ? result : null;
+    } catch(e) { return null; }
+  }
+
   let saveTimer = null;
   function onInput() {
     calc();
@@ -544,7 +552,19 @@
     saveTimer = setTimeout(saveAll, 800);
   }
 
-  document.querySelectorAll('#netTotal, #stock, #position, #creditGain').forEach(el => el.addEventListener('input', onInput));
+  document.querySelectorAll('#netTotal, #stock, #position, #creditGain').forEach(el => {
+    el.addEventListener('input', onInput);
+    el.addEventListener('blur', () => {
+      const val = el.value.trim();
+      if (/[\+\-\*\/]/.test(val)) {
+        const result = evalExpr(val);
+        if (result !== null) {
+          el.value = Math.round(result * 100) / 100;
+          onInput();
+        }
+      }
+    });
+  });
   document.querySelectorAll('.pos-val').forEach(el => el.addEventListener('input', () => {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveAll, 800);
