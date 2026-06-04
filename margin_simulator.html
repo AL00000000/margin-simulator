@@ -501,7 +501,7 @@
       const stockLoss  = stock * dropPct / 100;
       const creditLoss = marginPos * dropPct / 100;
       const numer1     = cash + stock * 0.8 - stockLoss * 0.8 - (creditLoss - creditGain);
-      const numer2     = cash + stock * 0.8 - pos * dropPct / 100 + creditGain;
+      const numer2     = cash + stock * 0.8 - stockLoss * 0.8 - creditLoss + creditGain;
       const maint1     = (marginPos > 0) ? numer1 / marginPos * 100 : null;
       const maint2     = (marginPos > 0) ? numer2 / marginPos * 100 : null;
       const same       = maint1 !== null && Math.abs(maint1 - maint2) < 0.05;
