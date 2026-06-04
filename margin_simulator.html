@@ -468,16 +468,23 @@
         : leverage > 0
           ? (leverage / (1 - s.rate / 100)).toFixed(2)
           : '−';
-      const marginLoss    = marginPos * dropPct / 100;
-      const stockLoss     = stock * dropPct / 100;
-      const scenarioMaint = (marginPos > 0)
-        ? (cash + stock * 0.8 - stockLoss * 0.8) / marginPos * 100
-        : null;
+      const stockLoss  = stock * dropPct / 100;
+      const creditLoss = marginPos * dropPct / 100;
+      // 式①: 現金 + 現物×0.8 − 現物損×0.8 − 信用評価損（=信用損失－含み益）
+      const numer1 = cash + stock * 0.8 - stockLoss * 0.8 - (creditLoss - creditGain);
+      // 式②: 現金 + 現物×0.8 − ポジション総額×下落率 ＋ 信用含み益
+      const numer2 = cash + stock * 0.8 - pos * dropPct / 100 + creditGain;
+      const maint1 = (marginPos > 0) ? numer1 / marginPos * 100 : null;
+      const maint2 = (marginPos > 0) ? numer2 / marginPos * 100 : null;
+      const same   = maint1 !== null && Math.abs(maint1 - maint2) < 0.05;
+      const scenarioMaint = maint1;
       const maintStyle = scenarioMaint === null ? ''
         : scenarioMaint < 20 ? ' style="color:var(--danger)"'
         : scenarioMaint < 25 ? ' style="color:var(--warn)"'
         : '';
-      const maintText = scenarioMaint === null ? '−' : scenarioMaint.toFixed(1) + '%';
+      const maintText = maint1 === null ? '−'
+        : same ? maint1.toFixed(1) + '%'
+        : maint1.toFixed(1) + '% (' + maint2.toFixed(1) + '%)';
       tbody.innerHTML += `
         <tr class="${trClass}">
           <td>${levInv}</td>
