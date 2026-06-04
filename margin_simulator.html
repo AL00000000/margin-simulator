@@ -451,7 +451,7 @@
 
     const leverage   = (pos > 0 && netTotal > 0) ? pos / netTotal : 0;
     const cash       = netTotal - stock - creditGain;
-    const marginPos  = pos - (netTotal - creditGain);
+    const marginPos  = pos - stock;
     const maintRate  = (marginPos > 0) ? (cash + stock * 0.8) / marginPos * 100 : null;
     const maintColor = maintRate === null ? 'var(--text)'
                      : maintRate < 20    ? 'var(--danger)'
@@ -474,7 +474,7 @@
       <div class="metric-card">
         <div class="mlabel">ポジション総額</div>
         <div class="mvalue">${fmt(pos)}</div>
-        <div class="msub">建値ベース</div>
+        <div class="msub">建値ベース = 現物 + 信用建玉</div>
       </div>
       <div class="metric-card">
         <div class="mlabel">信用維持率</div>
