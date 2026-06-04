@@ -331,6 +331,42 @@
 
   <hr class="divider">
 
+  <!-- ===== 維持率20%ライン ===== -->
+  <div class="section-title">維持率 20% になるとき</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>実質レバレッジ</th>
+        <th>維持率</th>
+        <th>純資産ダメージ</th>
+        <th>ポジション下落率</th>
+        <th>損失額</th>
+        <th>残余純資産</th>
+      </tr></thead>
+      <tbody id="maint20-body"></tbody>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== ポジション35%下落 ===== -->
+  <div class="section-title">ポジション下落率 35% のとき</div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>実質レバレッジ</th>
+        <th>維持率</th>
+        <th>純資産ダメージ</th>
+        <th>ポジション下落率</th>
+        <th>損失額</th>
+        <th>残余純資産</th>
+      </tr></thead>
+      <tbody id="drop35-body"></tbody>
+    </table>
+  </div>
+
+  <hr class="divider">
+
   <!-- ===== 個別ポジション ===== -->
   <div class="section-title">個別ポジション 下落シミュレーター</div>
   <div class="pos-grid">
@@ -457,37 +493,37 @@
     ];
     const tbody = document.getElementById('scenario-body');
     tbody.innerHTML = '';
-    scenarios.forEach(s => {
-      const dropPct      = leverage > 0 ? s.rate / leverage : 0;
-      const loss         = pos * dropPct / 100;
-      const remaining    = netTotal - loss;
-      const isBankrupt   = s.rate === 100;
-      const trClass      = isBankrupt ? 'danger' : '';
-      const levInv       = isBankrupt
-        ? '−'
-        : leverage > 0
-          ? (leverage / (1 - s.rate / 100)).toFixed(2)
-          : '−';
+    function calcRow(dropPct) {
+      const loss       = pos * dropPct / 100;
+      const remaining  = netTotal - loss;
+      const damagePct  = leverage > 0 ? dropPct * leverage : 0;
+      const levInv     = leverage > 0 ? (leverage / (1 - damagePct / 100)).toFixed(2) : '−';
       const stockLoss  = stock * dropPct / 100;
       const creditLoss = marginPos * dropPct / 100;
-      // 式①: 現金 + 現物×0.8 − 現物損×0.8 − 信用評価損（=信用損失－含み益）
-      const numer1 = cash + stock * 0.8 - stockLoss * 0.8 - (creditLoss - creditGain);
-      // 式②: 現金 + 現物×0.8 − ポジション総額×下落率 ＋ 信用含み益
-      const numer2 = cash + stock * 0.8 - pos * dropPct / 100 + creditGain;
-      const maint1 = (marginPos > 0) ? numer1 / marginPos * 100 : null;
-      const maint2 = (marginPos > 0) ? numer2 / marginPos * 100 : null;
-      const same   = maint1 !== null && Math.abs(maint1 - maint2) < 0.05;
-      const scenarioMaint = maint1;
-      const maintStyle = scenarioMaint === null ? ''
-        : scenarioMaint < 20 ? ' style="color:var(--danger)"'
-        : scenarioMaint < 25 ? ' style="color:var(--warn)"'
+      const numer1     = cash + stock * 0.8 - stockLoss * 0.8 - (creditLoss - creditGain);
+      const numer2     = cash + stock * 0.8 - pos * dropPct / 100 + creditGain;
+      const maint1     = (marginPos > 0) ? numer1 / marginPos * 100 : null;
+      const maint2     = (marginPos > 0) ? numer2 / marginPos * 100 : null;
+      const same       = maint1 !== null && Math.abs(maint1 - maint2) < 0.05;
+      const maintStyle = maint1 === null ? ''
+        : maint1 < 20 ? ' style="color:var(--danger)"'
+        : maint1 < 25 ? ' style="color:var(--warn)"'
         : '';
-      const maintText = maint1 === null ? '−'
+      const maintText  = maint1 === null ? '−'
         : same ? maint1.toFixed(1) + '%'
         : maint1.toFixed(1) + '% (' + maint2.toFixed(1) + '%)';
+      return { loss, remaining, damagePct, levInv, maintStyle, maintText };
+    }
+
+    scenarios.forEach(s => {
+      const dropPct     = leverage > 0 ? s.rate / leverage : 0;
+      const isBankrupt  = s.rate === 100;
+      const trClass     = isBankrupt ? 'danger' : '';
+      const { loss, remaining, damagePct, levInv: lev, maintStyle, maintText } = calcRow(dropPct);
+      const levDisp     = isBankrupt ? '−' : lev;
       tbody.innerHTML += `
         <tr class="${trClass}">
-          <td>${levInv}</td>
+          <td>${levDisp}</td>
           <td${maintStyle}>${maintText}</td>
           <td>${s.label}</td>
           <td>${fmtPct(dropPct)}</td>
@@ -495,6 +531,49 @@
           <td>${fmt(remaining)}</td>
         </tr>`;
     });
+
+    // ===== 維持率20%ライン =====
+    // 式①を使って解析的に求める
+    // 0.20 = (cash + stock×0.8 - drop×stock×0.8 - (drop×marginPos - creditGain)) / marginPos
+    // → drop = (cash + stock×0.8 + creditGain - 0.20×marginPos) / (stock×0.8 + marginPos) × 100
+    const maint20Body = document.getElementById('maint20-body');
+    if (marginPos > 0) {
+      const denom20  = stock * 0.8 + marginPos;
+      const drop20   = denom20 > 0
+        ? (cash + stock * 0.8 + creditGain - 0.20 * marginPos) / denom20 * 100
+        : null;
+      if (drop20 !== null && drop20 > 0 && drop20 <= 100) {
+        const { loss, remaining, damagePct, levInv, maintStyle, maintText } = calcRow(drop20);
+        maint20Body.innerHTML = `
+          <tr>
+            <td>${levInv}</td>
+            <td${maintStyle}>${maintText}</td>
+            <td>${fmtPct(damagePct)}</td>
+            <td>${fmtPct(drop20)}</td>
+            <td>${fmt(loss)}</td>
+            <td>${fmt(remaining)}</td>
+          </tr>`;
+      } else if (drop20 !== null && drop20 <= 0) {
+        maint20Body.innerHTML = `<tr><td colspan="6" style="color:var(--danger)">現時点で既に維持率20%以下です</td></tr>`;
+      } else {
+        maint20Body.innerHTML = `<tr><td colspan="6" style="color:var(--text3)">計算できません（100%超の下落が必要）</td></tr>`;
+      }
+    } else {
+      maint20Body.innerHTML = `<tr><td colspan="6" style="color:var(--text3)">信用建玉がありません</td></tr>`;
+    }
+
+    // ===== ポジション35%下落 =====
+    const drop35Body = document.getElementById('drop35-body');
+    const { loss: l35, remaining: r35, damagePct: d35, levInv: lev35, maintStyle: ms35, maintText: mt35 } = calcRow(35);
+    drop35Body.innerHTML = `
+      <tr>
+        <td>${lev35}</td>
+        <td${ms35}>${mt35}</td>
+        <td>${fmtPct(d35)}</td>
+        <td>35.00%</td>
+        <td>${fmt(l35)}</td>
+        <td>${fmt(r35)}</td>
+      </tr>`;
 
   }
 
