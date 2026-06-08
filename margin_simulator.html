@@ -731,10 +731,10 @@
 
   function buildTrackHead() {
     const head = document.getElementById('tracking-head');
-    let r1 = '<tr><th rowspan="2">日付</th><th rowspan="2">銘柄A<br>株価</th><th rowspan="2">自分の<br>資産（万円）</th>';
+    let r1 = '<tr><th rowspan="2">No.</th><th rowspan="2">日付</th><th rowspan="2">銘柄A<br>株価</th><th rowspan="2">自分の<br>資産（万円）</th>';
     let r2 = '<tr>';
     for (let w = 1; w <= TRACK_WEEKS; w++) {
-      r1 += `<th colspan="2" class="week-head">${w}週間前比</th>`;
+      r1 += `<th colspan="2" class="week-head">${w}つ前比</th>`;
       r2 += '<th>株価率</th><th>資産率</th>';
     }
     r1 += '<th rowspan="2"></th></tr>';
@@ -754,6 +754,7 @@
     tbody.innerHTML = '';
     trackRows.forEach((row, i) => {
       let cells = `
+        <td style="color:var(--text3);font-size:11px">${i + 1}</td>
         <td><input type="date" value="${row.date || ''}" class="tr-input" data-i="${i}" data-f="date"></td>
         <td><input type="number" value="${row.price ?? ''}" class="tr-input" data-i="${i}" data-f="price" step="1" min="0" placeholder="0"></td>
         <td><input type="number" value="${row.assets ?? ''}" class="tr-input" data-i="${i}" data-f="assets" step="1" min="0" placeholder="0"></td>`;
