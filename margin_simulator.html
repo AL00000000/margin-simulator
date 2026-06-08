@@ -749,6 +749,15 @@
     return `<span class="${cls}">${sign}${r.toFixed(1)}%</span>`;
   }
 
+  function sortTrack() {
+    trackRows.sort((a, b) => {
+      if (!a.date && !b.date) return 0;
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return a.date.localeCompare(b.date);
+    });
+  }
+
   function renderTrack() {
     const tbody = document.getElementById('tracking-body');
     tbody.innerHTML = '';
@@ -768,15 +777,25 @@
       tbody.innerHTML += `<tr>${cells}</tr>`;
     });
 
-    tbody.querySelectorAll('.tr-input').forEach(el => {
+    const allInputs = [...tbody.querySelectorAll('.tr-input')];
+
+    allInputs.forEach((el, idx) => {
       el.addEventListener('change', e => {
         const i = parseInt(e.target.dataset.i);
         const f = e.target.dataset.f;
         trackRows[i][f] = f === 'date' ? e.target.value : (parseFloat(e.target.value) || null);
+        if (f === 'date') sortTrack();
         saveTrack();
         renderTrack();
       });
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (idx + 1 < allInputs.length) allInputs[idx + 1].focus();
+        }
+      });
     });
+
     tbody.querySelectorAll('.del-track').forEach(el => {
       el.addEventListener('click', e => {
         trackRows.splice(parseInt(e.target.dataset.i), 1);
@@ -800,7 +819,9 @@
   }
 
   document.getElementById('add-track-btn').addEventListener('click', () => {
-    trackRows.push({ date: '', price: null, assets: null });
+    const today = new Date().toISOString().split('T')[0];
+    trackRows.push({ date: today, price: null, assets: null });
+    sortTrack();
     saveTrack();
     renderTrack();
   });
