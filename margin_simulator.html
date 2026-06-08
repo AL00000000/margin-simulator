@@ -272,6 +272,56 @@
       font-size: 11px;
       color: var(--danger);
     }
+
+    #tracking-wrap {
+      overflow-x: auto;
+      margin-bottom: 1.5rem;
+    }
+    #tracking-table {
+      border-collapse: collapse;
+      white-space: nowrap;
+      font-size: 12px;
+    }
+    #tracking-table th, #tracking-table td {
+      border: 1px solid var(--border);
+      padding: 4px 6px;
+      text-align: center;
+    }
+    #tracking-table th {
+      background: var(--card);
+      color: var(--text2);
+      font-weight: 600;
+    }
+    #tracking-table th.week-head {
+      background: #1e2a1e;
+    }
+    .tr-input {
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 12px;
+      width: 80px;
+      text-align: center;
+      outline: none;
+    }
+    .tr-input[type="date"] { width: 110px; }
+    .tr-input:focus { background: rgba(255,255,255,0.05); border-radius: 3px; }
+    .del-track {
+      background: none;
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      border-radius: 3px;
+      padding: 1px 6px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .rate-pos { color: #4caf50; }
+    .rate-neg { color: var(--danger); }
+    .btn-row-track {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1.5rem;
+    }
   </style>
 </head>
 <body>
@@ -363,6 +413,20 @@
       </tr></thead>
       <tbody id="drop35-body"></tbody>
     </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ===== 週次トラッキング ===== -->
+  <div class="section-title">週次トラッキング</div>
+  <div id="tracking-wrap">
+    <table id="tracking-table">
+      <thead id="tracking-head"></thead>
+      <tbody id="tracking-body"></tbody>
+    </table>
+  </div>
+  <div class="btn-row-track">
+    <button class="btn" id="add-track-btn">+ 行を追加</button>
   </div>
 
   <hr class="divider">
@@ -659,6 +723,88 @@
 
   // 起動時ロード
   loadAll();
+
+  // ===== 週次トラッキング =====
+  const TRACK_KEY = 'margin-track-v1';
+  const TRACK_WEEKS = 10;
+  let trackRows = [];
+
+  function buildTrackHead() {
+    const head = document.getElementById('tracking-head');
+    let r1 = '<tr><th rowspan="2">日付</th><th rowspan="2">銘柄A<br>株価</th><th rowspan="2">自分の<br>資産（万円）</th>';
+    let r2 = '<tr>';
+    for (let w = 1; w <= TRACK_WEEKS; w++) {
+      r1 += `<th colspan="2" class="week-head">${w}週間前比</th>`;
+      r2 += '<th>株価率</th><th>資産率</th>';
+    }
+    r1 += '<th rowspan="2"></th></tr>';
+    r2 += '</tr>';
+    head.innerHTML = r1 + r2;
+  }
+
+  function fmtRate(r) {
+    if (r === null) return '<span style="color:var(--text3)">−</span>';
+    const sign = r >= 0 ? '+' : '';
+    const cls  = r >= 0 ? 'rate-pos' : 'rate-neg';
+    return `<span class="${cls}">${sign}${r.toFixed(1)}%</span>`;
+  }
+
+  function renderTrack() {
+    const tbody = document.getElementById('tracking-body');
+    tbody.innerHTML = '';
+    trackRows.forEach((row, i) => {
+      let cells = `
+        <td><input type="date" value="${row.date || ''}" class="tr-input" data-i="${i}" data-f="date"></td>
+        <td><input type="number" value="${row.price ?? ''}" class="tr-input" data-i="${i}" data-f="price" step="1" min="0" placeholder="0"></td>
+        <td><input type="number" value="${row.assets ?? ''}" class="tr-input" data-i="${i}" data-f="assets" step="1" min="0" placeholder="0"></td>`;
+      for (let w = 1; w <= TRACK_WEEKS; w++) {
+        const prev = trackRows[i - w];
+        const pr = (prev?.price && row.price)   ? (row.price  - prev.price)  / prev.price  * 100 : null;
+        const ar = (prev?.assets && row.assets) ? (row.assets - prev.assets) / prev.assets * 100 : null;
+        cells += `<td>${fmtRate(pr)}</td><td>${fmtRate(ar)}</td>`;
+      }
+      cells += `<td><button class="del-track" data-i="${i}">×</button></td>`;
+      tbody.innerHTML += `<tr>${cells}</tr>`;
+    });
+
+    tbody.querySelectorAll('.tr-input').forEach(el => {
+      el.addEventListener('change', e => {
+        const i = parseInt(e.target.dataset.i);
+        const f = e.target.dataset.f;
+        trackRows[i][f] = f === 'date' ? e.target.value : (parseFloat(e.target.value) || null);
+        saveTrack();
+        renderTrack();
+      });
+    });
+    tbody.querySelectorAll('.del-track').forEach(el => {
+      el.addEventListener('click', e => {
+        trackRows.splice(parseInt(e.target.dataset.i), 1);
+        saveTrack();
+        renderTrack();
+      });
+    });
+  }
+
+  function saveTrack() {
+    try { localStorage.setItem(TRACK_KEY, JSON.stringify(trackRows)); } catch(e) {}
+  }
+
+  function loadTrack() {
+    try {
+      const raw = localStorage.getItem(TRACK_KEY);
+      if (raw) trackRows = JSON.parse(raw);
+    } catch(e) {}
+    buildTrackHead();
+    renderTrack();
+  }
+
+  document.getElementById('add-track-btn').addEventListener('click', () => {
+    trackRows.push({ date: '', price: null, assets: null });
+    saveTrack();
+    renderTrack();
+  });
+
+  loadTrack();
 </script>
 </body>
 </html>
