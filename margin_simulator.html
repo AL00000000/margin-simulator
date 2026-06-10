@@ -349,14 +349,9 @@
       <div class="hint">万円</div>
     </div>
     <div class="input-card">
-      <label>建代金合計</label>
-      <input type="number" id="costBasis" min="0" step="1" placeholder="例: 739">
-      <div class="hint">万円（SBI「建代金合計」欄の値）</div>
-    </div>
-    <div class="input-card">
-      <label>信用損益合計</label>
-      <input type="number" id="creditGain" step="1" placeholder="例: −31">
-      <div class="hint">万円（評価損益＋決済損益＋経費の合計、損失はマイナス）</div>
+      <label>信用含み損益</label>
+      <input type="number" id="creditGain" step="1" placeholder="例: −14">
+      <div class="hint">万円（含み損の場合はマイナス入力）</div>
     </div>
   </div>
 
@@ -422,6 +417,29 @@
 
   <hr class="divider">
 
+  <!-- ===== SBI 信用維持率 ===== -->
+  <div class="section-title">SBI 信用維持率（参考委託保証金率）</div>
+  <div class="input-grid">
+    <div class="input-card">
+      <label>実質保証金 A</label>
+      <input type="number" id="sbiA" min="0" step="0.01" placeholder="例: 431.58">
+      <div class="hint">万円（SBI「実質保証金(A)」欄）</div>
+    </div>
+    <div class="input-card">
+      <label>スィープ口座残高 C</label>
+      <input type="number" id="sbiC" min="0" step="0.01" placeholder="例: 224.43">
+      <div class="hint">万円（SBI「スィープ専用銀行口座残高(C)」欄）</div>
+    </div>
+    <div class="input-card">
+      <label>建代金合計 B</label>
+      <input type="number" id="sbiB" min="0" step="0.01" placeholder="例: 739.28">
+      <div class="hint">万円（SBI「建代金合計(B)」欄）</div>
+    </div>
+  </div>
+  <div class="summary-grid" id="sbi-summary"></div>
+
+  <hr class="divider">
+
   <!-- ===== 週次トラッキング ===== -->
   <div class="section-title">週次トラッキング</div>
   <div id="tracking-wrap">
@@ -473,7 +491,6 @@
       netTotal   : document.getElementById('netTotal').value,
       stock      : document.getElementById('stock').value,
       position   : document.getElementById('position').value,
-      costBasis  : document.getElementById('costBasis').value,
       creditGain : document.getElementById('creditGain').value,
       posVals    : [...document.querySelectorAll('.pos-val')].map(el => el.value),
     };
@@ -491,7 +508,6 @@
         document.getElementById('netTotal').value   = data.netTotal   ?? '';
         document.getElementById('stock').value      = data.stock      ?? '';
         document.getElementById('position').value   = data.position   ?? '';
-        document.getElementById('costBasis').value  = data.costBasis  ?? '';
         document.getElementById('creditGain').value = data.creditGain ?? '';
         const posInputs = document.querySelectorAll('.pos-val');
         (data.posVals || []).forEach((v, i) => { if (posInputs[i]) posInputs[i].value = v; });
@@ -518,16 +534,12 @@
     const netTotal    = parseFloat(document.getElementById('netTotal').value)    || 0;
     const stock       = parseFloat(document.getElementById('stock').value)       || 0;
     const pos         = parseFloat(document.getElementById('position').value)    || 0;
-    const costBasis   = parseFloat(document.getElementById('costBasis').value)   || 0;
     const creditGain  = parseFloat(document.getElementById('creditGain').value)  || 0;
 
     const leverage   = (pos > 0 && netTotal > 0) ? pos / netTotal : 0;
-    // 現金 = 純資産 − 現物時価（掛目なし）
     const cash       = netTotal - stock;
-    // 分母は建代金合計（入力値）、未入力時はポジション−現物で代替
-    const marginPos  = costBasis > 0 ? costBasis : pos - stock;
-    // 維持率 = (現金 + 現物×0.8 + 信用損益合計) ÷ 建代金合計
-    const maintRate  = (marginPos > 0) ? (cash + stock * 0.8 + creditGain) / marginPos * 100 : null;
+    const marginPos  = pos - stock;
+    const maintRate  = null; // 維持率はSBIセクションで別途計算
     const maintColor = maintRate === null ? 'var(--text)'
                      : maintRate < 20    ? 'var(--danger)'
                      : maintRate < 25    ? 'var(--warn)'
@@ -552,12 +564,9 @@
         <div class="msub">建値ベース = 現物 + 信用建玉</div>
       </div>
       <div class="metric-card">
-        <div class="mlabel">信用維持率</div>
-        <div class="mvalue" style="color:${maintColor}">${maintText}</div>
-        <div class="msub">（現金+現物×0.8+信用損益）÷ 建代金</div>
-        <div class="msub">現金: ${netTotal}−${stock} = ${Math.round(cash * 10) / 10}</div>
-        <div class="msub">建代金: ${marginPos > 0 ? Math.round(marginPos) : '未入力'}</div>
-        <div class="msub">(${Math.round(cash)}+${Math.round(stock)}×0.8${creditGain !== 0 ? (creditGain >= 0 ? '+' : '') + creditGain : ''})÷${Math.round(marginPos)}</div>
+        <div class="mlabel">信用建玉</div>
+        <div class="mvalue">${fmt(marginPos)}</div>
+        <div class="msub">ポジション − 現物</div>
       </div>`;
 
     // 下落シナリオ
@@ -575,16 +584,8 @@
       const remaining  = netTotal - loss;
       const damagePct  = leverage > 0 ? dropPct * leverage : 0;
       const levInv     = leverage > 0 ? (leverage / (1 - damagePct / 100)).toFixed(2) : '−';
-      const stockLoss  = stock * dropPct / 100;
-      const creditLoss = marginPos * dropPct / 100;
-      // 維持率 = (現金 + 現物×0.8×(1−drop) + 信用損益合計 − 建代金×drop) / 建代金
-      const numer      = cash + (stock - stockLoss) * 0.8 + creditGain - creditLoss;
-      const maint1     = (marginPos > 0) ? numer / marginPos * 100 : null;
-      const maintStyle = maint1 === null ? ''
-        : maint1 < 20 ? ' style="color:var(--danger)"'
-        : maint1 < 25 ? ' style="color:var(--warn)"'
-        : '';
-      const maintText  = maint1 === null ? '−' : maint1.toFixed(1) + '%';
+      const maintStyle = '';
+      const maintText  = '−';
       return { loss, remaining, damagePct, levInv, maintStyle, maintText };
     }
 
@@ -710,7 +711,7 @@
     saveTimer = setTimeout(saveAll, 800);
   }
 
-  document.querySelectorAll('#netTotal, #stock, #position, #costBasis, #creditGain').forEach(el => {
+  document.querySelectorAll('#netTotal, #stock, #position, #creditGain').forEach(el => {
     el.addEventListener('input', onInput);
     el.addEventListener('blur', () => {
       const val = el.value.trim();
@@ -731,6 +732,64 @@
 
   // 起動時ロード
   loadAll();
+
+  // ===== SBI 信用維持率 =====
+  const SBI_KEY = 'margin-sbi-v1';
+
+  function calcSbi() {
+    const A = parseFloat(document.getElementById('sbiA').value) || 0;
+    const C = parseFloat(document.getElementById('sbiC').value) || 0;
+    const B = parseFloat(document.getElementById('sbiB').value) || 0;
+    const rate = (B > 0) ? (A + C) / B * 100 : null;
+    const rateColor = rate === null ? 'var(--text)'
+      : rate < 20 ? 'var(--danger)'
+      : rate < 25 ? 'var(--warn)'
+      : 'var(--text)';
+    const rateText = rate === null ? '−' : rate.toFixed(2) + '%';
+    document.getElementById('sbi-summary').innerHTML = `
+      <div class="metric-card">
+        <div class="mlabel">参考委託保証金率</div>
+        <div class="mvalue" style="color:${rateColor}">${rateText}</div>
+        <div class="msub">(A+C)÷B = (${A}+${C})÷${B}</div>
+      </div>
+      <div class="metric-card">
+        <div class="mlabel">実質保証金 A</div>
+        <div class="mvalue">${A > 0 ? fmt(A) : '−'}</div>
+        <div class="msub">委託保証金現金+代用評価額+損益</div>
+      </div>
+      <div class="metric-card">
+        <div class="mlabel">スィープ口座 C</div>
+        <div class="mvalue">${C > 0 ? fmt(C) : '−'}</div>
+        <div class="msub">銀行口座残高</div>
+      </div>
+      <div class="metric-card">
+        <div class="mlabel">建代金合計 B</div>
+        <div class="mvalue">${B > 0 ? fmt(B) : '−'}</div>
+        <div class="msub">信用建玉の建値合計</div>
+      </div>`;
+    try {
+      localStorage.setItem(SBI_KEY, JSON.stringify({ A, C, B }));
+    } catch(e) {}
+  }
+
+  function loadSbi() {
+    try {
+      const raw = localStorage.getItem(SBI_KEY);
+      if (raw) {
+        const d = JSON.parse(raw);
+        document.getElementById('sbiA').value = d.A ?? '';
+        document.getElementById('sbiC').value = d.C ?? '';
+        document.getElementById('sbiB').value = d.B ?? '';
+      }
+    } catch(e) {}
+    calcSbi();
+  }
+
+  document.querySelectorAll('#sbiA, #sbiC, #sbiB').forEach(el => {
+    el.addEventListener('input', calcSbi);
+  });
+
+  loadSbi();
 
   // ===== 週次トラッキング =====
   const TRACK_KEY = 'margin-track-v1';
