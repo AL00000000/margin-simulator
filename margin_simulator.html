@@ -514,7 +514,7 @@
     const creditGain  = parseFloat(document.getElementById('creditGain').value)  || 0;
 
     const leverage   = (pos > 0 && netTotal > 0) ? pos / netTotal : 0;
-    const cash       = netTotal - stock - creditGain;
+    const cash       = netTotal - stock * 0.8 - creditGain;
     const marginPos  = pos - stock;
     const maintRate  = (marginPos > 0) ? (cash + stock * 0.8) / marginPos * 100 : null;
     const maintColor = maintRate === null ? 'var(--text)'
