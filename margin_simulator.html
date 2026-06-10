@@ -579,13 +579,26 @@
     ];
     const tbody = document.getElementById('scenario-body');
     tbody.innerHTML = '';
+    const sbiA = parseFloat(document.getElementById('sbiA').value) || 0;
+    const sbiC = parseFloat(document.getElementById('sbiC').value) || 0;
+    const sbiB = parseFloat(document.getElementById('sbiB').value) || 0;
+    const hasSbi = sbiA > 0 && sbiB > 0;
+
     function calcRow(dropPct) {
-      const loss       = pos * dropPct / 100;
-      const remaining  = netTotal - loss;
-      const damagePct  = leverage > 0 ? dropPct * leverage : 0;
-      const levInv     = leverage > 0 ? (leverage / (1 - damagePct / 100)).toFixed(2) : '−';
-      const maintStyle = '';
-      const maintText  = '−';
+      const loss      = pos * dropPct / 100;
+      const remaining = netTotal - loss;
+      const damagePct = leverage > 0 ? dropPct * leverage : 0;
+      const levInv    = leverage > 0 ? (leverage / (1 - damagePct / 100)).toFixed(2) : '−';
+      let maintStyle  = '';
+      let maintText   = '−';
+      if (hasSbi) {
+        const aNew  = sbiA - (stock * 0.8 + sbiB) * dropPct / 100;
+        const maint = (aNew + sbiC) / sbiB * 100;
+        maintStyle  = maint < 20 ? ' style="color:var(--danger)"'
+                    : maint < 25 ? ' style="color:var(--warn)"'
+                    : '';
+        maintText   = maint.toFixed(1) + '%';
+      }
       return { loss, remaining, damagePct, levInv, maintStyle, maintText };
     }
 
@@ -607,14 +620,12 @@
     });
 
     // ===== 維持率20%ライン =====
-    // 0.20 = (現金 + 現物×0.8×(1−drop) + 信用損益 − 建代金×drop) / 建代金
-    // → drop = (現金 + 現物×0.8 + 信用損益 − 0.20×建代金) / (現物×0.8 + 建代金)
+    // 0.20 = (A − (現物×0.8 + B)×drop + C) / B
+    // → drop = (A + C − 0.20×B) / (現物×0.8 + B)
     const maint20Body = document.getElementById('maint20-body');
-    if (marginPos > 0) {
-      const denom20  = stock * 0.8 + marginPos;
-      const drop20   = denom20 > 0
-        ? (cash + stock * 0.8 + creditGain - 0.20 * marginPos) / denom20 * 100
-        : null;
+    if (hasSbi) {
+      const denom20 = stock * 0.8 + sbiB;
+      const drop20  = denom20 > 0 ? (sbiA + sbiC - 0.20 * sbiB) / denom20 * 100 : null;
       if (drop20 !== null && drop20 > 0 && drop20 <= 100) {
         const { loss, remaining, damagePct, levInv, maintStyle, maintText } = calcRow(drop20);
         maint20Body.innerHTML = `
@@ -632,7 +643,7 @@
         maint20Body.innerHTML = `<tr><td colspan="6" style="color:var(--text3)">計算できません（100%超の下落が必要）</td></tr>`;
       }
     } else {
-      maint20Body.innerHTML = `<tr><td colspan="6" style="color:var(--text3)">信用建玉がありません</td></tr>`;
+      maint20Body.innerHTML = `<tr><td colspan="6" style="color:var(--text3)">SBIセクションにA・B・Cを入力してください</td></tr>`;
     }
 
     // ===== ポジション35%下落 =====
@@ -786,7 +797,7 @@
   }
 
   document.querySelectorAll('#sbiA, #sbiC, #sbiB').forEach(el => {
-    el.addEventListener('input', calcSbi);
+    el.addEventListener('input', () => { calcSbi(); calc(); });
   });
 
   loadSbi();
