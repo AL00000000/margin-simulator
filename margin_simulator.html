@@ -515,7 +515,7 @@
 
     const leverage   = (pos > 0 && netTotal > 0) ? pos / netTotal : 0;
     const cash       = netTotal - stock * 0.8 - creditGain;
-    const marginPos  = pos - stock;
+    const marginPos  = pos - stock + (creditGain < 0 ? Math.abs(creditGain) : 0);
     const maintRate  = (marginPos > 0) ? (cash + stock * 0.8) / marginPos * 100 : null;
     const maintColor = maintRate === null ? 'var(--text)'
                      : maintRate < 20    ? 'var(--danger)'
