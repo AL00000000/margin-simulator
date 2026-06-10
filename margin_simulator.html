@@ -330,32 +330,37 @@
   <h1>信用取引レバレッジ管理・損失シミュレーター</h1>
   <p class="subtitle">入力値はブラウザのキャッシュ（localStorage）に自動保存されます。</p>
 
-  <!-- ===== 資産入力（アーカイブ中・折りたたみ） ===== -->
-  <details style="margin-bottom:1.5rem">
-    <summary style="cursor:pointer;color:var(--text3);font-size:13px;padding:6px 0">▶ 資産・ポジション入力（レバレッジ管理用・折りたたみ中）</summary>
-    <div class="input-grid" style="margin-top:1rem">
-      <div class="input-card">
-        <label>純資産合計（現物株評価額+現金）</label>
-        <input type="number" id="netTotal" min="0" step="1" placeholder="例: 340">
-        <div class="hint">万円（現物株時価含む、掛目なし）</div>
-      </div>
-      <div class="input-card">
-        <label>うち現物株評価額</label>
-        <input type="number" id="stock" min="0" step="1" placeholder="例: 300">
-        <div class="hint">万円（純資産合計に含まれる分）</div>
-      </div>
-      <div class="input-card">
-        <label>ポジション総額（建値）</label>
-        <input type="number" id="position" min="0" step="1" placeholder="例: 800">
-        <div class="hint">万円</div>
-      </div>
-      <div class="input-card">
-        <label>信用含み損益</label>
-        <input type="number" id="creditGain" step="1" placeholder="例: −14">
-        <div class="hint">万円（含み損の場合はマイナス入力）</div>
-      </div>
+  <!-- 隠し入力（calcSbiから自動設定） -->
+  <input type="hidden" id="netTotal">
+  <input type="hidden" id="stock">
+  <input type="hidden" id="position">
+  <input type="hidden" id="creditGain" value="0">
+
+  <!-- ===== SBI 信用維持率 ===== -->
+  <div class="section-title">SBI 入力（余力タブ・評価損益タブ）</div>
+  <div class="input-grid">
+    <div class="input-card">
+      <label>実質保証金 A</label>
+      <input type="number" id="sbiA" min="0" step="0.01" placeholder="例: 431.58">
+      <div class="hint">万円（SBI「実質保証金(A)」欄）</div>
     </div>
-  </details>
+    <div class="input-card">
+      <label>スィープ口座残高 C</label>
+      <input type="number" id="sbiC" min="0" step="0.01" placeholder="例: 224.43">
+      <div class="hint">万円（SBI「スィープ専用銀行口座残高(C)」欄）</div>
+    </div>
+    <div class="input-card">
+      <label>建代金合計 B</label>
+      <input type="number" id="sbiB" min="0" step="0.01" placeholder="例: 739.28">
+      <div class="hint">万円（SBI「建代金合計(B)」欄）</div>
+    </div>
+    <div class="input-card">
+      <label>現物時価合計</label>
+      <input type="number" id="sbiStock" min="0" step="0.01" placeholder="例: 578.8">
+      <div class="hint">万円（SBI評価損益タブ「株式時価評価額合計」）</div>
+    </div>
+  </div>
+  <div class="summary-grid" id="sbi-summary"></div>
 
   <hr class="divider">
 
@@ -366,7 +371,7 @@
   <hr class="divider">
 
   <!-- ===== 下落シナリオ ===== -->
-  <div class="section-title">下落シナリオ（純資産へのダメージ別）<span style="font-size:11px;font-weight:400;color:var(--text3);margin-left:10px">※本来は信用の含み益に税金分の0.8倍をしておくべきですが、運用上面倒なので省略</span></div>
+  <div class="section-title">下落シナリオ（純資産へのダメージ別）</div>
   <div class="table-wrap">
     <table>
       <thead><tr>
@@ -419,29 +424,6 @@
 
   <hr class="divider">
 
-  <!-- ===== SBI 信用維持率 ===== -->
-  <div class="section-title">SBI 信用維持率（参考委託保証金率）</div>
-  <div class="input-grid">
-    <div class="input-card">
-      <label>実質保証金 A</label>
-      <input type="number" id="sbiA" min="0" step="0.01" placeholder="例: 431.58">
-      <div class="hint">万円（SBI「実質保証金(A)」欄）</div>
-    </div>
-    <div class="input-card">
-      <label>スィープ口座残高 C</label>
-      <input type="number" id="sbiC" min="0" step="0.01" placeholder="例: 224.43">
-      <div class="hint">万円（SBI「スィープ専用銀行口座残高(C)」欄）</div>
-    </div>
-    <div class="input-card">
-      <label>建代金合計 B</label>
-      <input type="number" id="sbiB" min="0" step="0.01" placeholder="例: 739.28">
-      <div class="hint">万円（SBI「建代金合計(B)」欄）</div>
-    </div>
-  </div>
-  <div class="summary-grid" id="sbi-summary"></div>
-
-  <hr class="divider">
-
   <!-- ===== 週次トラッキング ===== -->
   <div class="section-title">週次トラッキング</div>
   <div id="tracking-wrap">
@@ -490,10 +472,6 @@
   // ===== localStorage 保存 / 復元 =====
   function saveAll() {
     const data = {
-      netTotal   : document.getElementById('netTotal').value,
-      stock      : document.getElementById('stock').value,
-      position   : document.getElementById('position').value,
-      creditGain : document.getElementById('creditGain').value,
       posVals    : [...document.querySelectorAll('.pos-val')].map(el => el.value),
     };
     try {
@@ -507,17 +485,11 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
-        document.getElementById('netTotal').value   = data.netTotal   ?? '';
-        document.getElementById('stock').value      = data.stock      ?? '';
-        document.getElementById('position').value   = data.position   ?? '';
-        document.getElementById('creditGain').value = data.creditGain ?? '';
         const posInputs = document.querySelectorAll('.pos-val');
         (data.posVals || []).forEach((v, i) => { if (posInputs[i]) posInputs[i].value = v; });
-        setStatus('前回の入力を復元しました', false);
-        setTimeout(() => setStatus('', false), 2500);
       }
     } catch(e) { /* 無視 */ }
-    calc();
+    // calc()はloadSbi()の末尾で呼ばれるため、ここでは不要
   }
 
   function showSaved() {
@@ -724,19 +696,7 @@
     saveTimer = setTimeout(saveAll, 800);
   }
 
-  document.querySelectorAll('#netTotal, #stock, #position, #creditGain').forEach(el => {
-    el.addEventListener('input', onInput);
-    el.addEventListener('blur', () => {
-      const val = el.value.trim();
-      if (/[\+\-\*\/]/.test(val)) {
-        const result = evalExpr(val);
-        if (result !== null) {
-          el.value = Math.round(result * 100) / 100;
-          onInput();
-        }
-      }
-    });
-  });
+  // #netTotal, #stock, #position, #creditGain はhidden入力（calcSbiが自動設定）のためイベント不要
   document.querySelectorAll('.pos-val').forEach(el => el.addEventListener('input', () => {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(saveAll, 800);
@@ -753,12 +713,33 @@
     const A = parseFloat(document.getElementById('sbiA').value) || 0;
     const C = parseFloat(document.getElementById('sbiC').value) || 0;
     const B = parseFloat(document.getElementById('sbiB').value) || 0;
+    const S = parseFloat(document.getElementById('sbiStock').value) || 0;
+
+    // 維持率
     const rate = (B > 0) ? (A + C) / B * 100 : null;
     const rateColor = rate === null ? 'var(--text)'
       : rate < 20 ? 'var(--danger)'
       : rate < 25 ? 'var(--warn)'
       : 'var(--text)';
     const rateText = rate === null ? '−' : rate.toFixed(2) + '%';
+
+    // レバレッジ（SBIデータから導出）
+    // 純資産 = 現物時価×0.2 + A + C  ←現物は信用担保として0.8分が既にAに含まれるため残り0.2が自己資本
+    // ポジション = 現物時価 + 建代金合計B
+    const netAsset = S * 0.2 + A + C;
+    const totalPos = S + B;
+    const leverage = (netAsset > 0 && totalPos > 0) ? totalPos / netAsset : null;
+    const levText = leverage === null ? '−' : leverage.toFixed(2) + '倍';
+    const levColor = leverage === null ? 'var(--text)'
+      : leverage > 3 ? 'var(--danger)'
+      : leverage > 2 ? 'var(--warn)'
+      : 'var(--text)';
+
+    // 隠し入力に自動セット（calc()がこれを使う）
+    document.getElementById('netTotal').value = netAsset;
+    document.getElementById('stock').value = S;
+    document.getElementById('position').value = totalPos;
+
     document.getElementById('sbi-summary').innerHTML = `
       <div class="metric-card">
         <div class="mlabel">参考委託保証金率</div>
@@ -766,22 +747,22 @@
         <div class="msub">(A+C)÷B = (${A}+${C})÷${B}</div>
       </div>
       <div class="metric-card">
-        <div class="mlabel">実質保証金 A</div>
-        <div class="mvalue">${A > 0 ? fmt(A) : '−'}</div>
-        <div class="msub">委託保証金現金+代用評価額+損益</div>
+        <div class="mlabel">実質レバレッジ</div>
+        <div class="mvalue" style="color:${levColor}">${levText}</div>
+        <div class="msub">ポジ(${fmt(totalPos)})÷純資産(${fmt(netAsset)})</div>
       </div>
       <div class="metric-card">
-        <div class="mlabel">スィープ口座 C</div>
-        <div class="mvalue">${C > 0 ? fmt(C) : '−'}</div>
-        <div class="msub">銀行口座残高</div>
+        <div class="mlabel">純資産（レバ計算用）</div>
+        <div class="mvalue">${netAsset > 0 ? fmt(netAsset) : '−'}</div>
+        <div class="msub">現物×0.2 + A + C</div>
       </div>
       <div class="metric-card">
-        <div class="mlabel">建代金合計 B</div>
-        <div class="mvalue">${B > 0 ? fmt(B) : '−'}</div>
-        <div class="msub">信用建玉の建値合計</div>
+        <div class="mlabel">ポジション総額</div>
+        <div class="mvalue">${totalPos > 0 ? fmt(totalPos) : '−'}</div>
+        <div class="msub">現物時価 + 建代金B</div>
       </div>`;
     try {
-      localStorage.setItem(SBI_KEY, JSON.stringify({ A, C, B }));
+      localStorage.setItem(SBI_KEY, JSON.stringify({ A, C, B, S }));
     } catch(e) {}
   }
 
@@ -793,13 +774,14 @@
         document.getElementById('sbiA').value = d.A ?? '';
         document.getElementById('sbiC').value = d.C ?? '';
         document.getElementById('sbiB').value = d.B ?? '';
+        document.getElementById('sbiStock').value = d.S ?? '';
       }
     } catch(e) {}
     calcSbi();
     calc();
   }
 
-  document.querySelectorAll('#sbiA, #sbiC, #sbiB').forEach(el => {
+  document.querySelectorAll('#sbiA, #sbiC, #sbiB, #sbiStock').forEach(el => {
     el.addEventListener('input', () => { calcSbi(); calc(); });
   });
 
