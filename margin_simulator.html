@@ -544,6 +544,8 @@
         <div class="mlabel">信用維持率</div>
         <div class="mvalue" style="color:${maintColor}">${maintText}</div>
         <div class="msub">（現金+現物×0.8）÷ 信用建玉</div>
+        <div class="msub">現金: ${netTotal}−${stock}×0.8${creditGain !== 0 ? (creditGain < 0 ? '+' + Math.abs(creditGain) : '−' + creditGain) : ''} = ${Math.round(cash * 10) / 10}</div>
+        <div class="msub">信用建玉: ${pos}−${stock}${creditGain < 0 ? '+' + Math.abs(creditGain) : ''} = ${Math.round(marginPos)}</div>
         <div class="msub">(${Math.round(cash)}+${Math.round(stock)}×0.8)÷${Math.round(marginPos)}</div>
       </div>`;
 
