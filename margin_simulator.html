@@ -359,8 +359,20 @@
       <input type="number" id="sbiStock" min="0" step="0.01" placeholder="例: 578.8">
       <div class="hint">万円（SBI評価損益タブ「株式時価評価額合計」）</div>
     </div>
+    <div class="input-card">
+      <label>含み益合計（任意）</label>
+      <input type="number" id="sbiGain" step="0.01" placeholder="例: 30.5">
+      <div class="hint">万円（信用・現物含み益。レバレッジのみに反映）</div>
+    </div>
   </div>
   <div class="summary-grid" id="sbi-summary"></div>
+  <div id="lev-history-wrap" style="margin-top:0.8rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+    <button id="lev-save-btn" style="padding:4px 10px;font-size:12px;cursor:pointer">記録する</button>
+    <select id="lev-history-select" style="font-size:12px;padding:3px 6px;min-width:220px">
+      <option value="">── 履歴なし ──</option>
+    </select>
+    <button id="lev-del-btn" style="padding:4px 8px;font-size:12px;cursor:pointer;color:var(--danger)">削除</button>
+  </div>
 
   <hr class="divider">
 
@@ -708,14 +720,16 @@
 
   // ===== SBI 信用維持率 =====
   const SBI_KEY = 'margin-sbi-v1';
+  let lastLeverage = null;
 
   function calcSbi() {
-    const A = parseFloat(document.getElementById('sbiA').value) || 0;
-    const C = parseFloat(document.getElementById('sbiC').value) || 0;
-    const B = parseFloat(document.getElementById('sbiB').value) || 0;
-    const S = parseFloat(document.getElementById('sbiStock').value) || 0;
+    const A    = parseFloat(document.getElementById('sbiA').value)     || 0;
+    const C    = parseFloat(document.getElementById('sbiC').value)     || 0;
+    const B    = parseFloat(document.getElementById('sbiB').value)     || 0;
+    const S    = parseFloat(document.getElementById('sbiStock').value) || 0;
+    const gain = parseFloat(document.getElementById('sbiGain').value)  || 0;
 
-    // 維持率
+    // 維持率（含み益は無関係）
     const rate = (B > 0) ? (A + C) / B * 100 : null;
     const rateColor = rate === null ? 'var(--text)'
       : rate < 20 ? 'var(--danger)'
@@ -723,23 +737,24 @@
       : 'var(--text)';
     const rateText = rate === null ? '−' : rate.toFixed(2) + '%';
 
-    // レバレッジ（SBIデータから導出）
-    // 純資産 = 現物時価×0.2 + A + C  ←現物は信用担保として0.8分が既にAに含まれるため残り0.2が自己資本
-    // ポジション = 現物時価 + 建代金合計B
-    const netAsset = S * 0.2 + A + C;
-    const totalPos = S + B;
+    // レバレッジ（含み益をポジション・純資産の両方に加算）
+    const netAsset = S * 0.2 + A + C + gain;
+    const totalPos = S + B + gain;
     const leverage = (netAsset > 0 && totalPos > 0) ? totalPos / netAsset : null;
-    const levText = leverage === null ? '−' : leverage.toFixed(2) + '倍';
+    const levText  = leverage === null ? '−' : leverage.toFixed(2) + '倍';
     const levColor = leverage === null ? 'var(--text)'
       : leverage > 3 ? 'var(--danger)'
       : leverage > 2 ? 'var(--warn)'
       : 'var(--text)';
 
+    lastLeverage = leverage;
+
     // 隠し入力に自動セット（calc()がこれを使う）
     document.getElementById('netTotal').value = netAsset;
-    document.getElementById('stock').value = S;
+    document.getElementById('stock').value    = S;
     document.getElementById('position').value = totalPos;
 
+    const gainNote = gain !== 0 ? `+含み益(${fmt(gain)})` : '';
     document.getElementById('sbi-summary').innerHTML = `
       <div class="metric-card">
         <div class="mlabel">参考委託保証金率</div>
@@ -754,15 +769,15 @@
       <div class="metric-card">
         <div class="mlabel">純資産（レバ計算用）</div>
         <div class="mvalue">${netAsset > 0 ? fmt(netAsset) : '−'}</div>
-        <div class="msub">現物×0.2 + A + C</div>
+        <div class="msub">現物×0.2 + A + C${gainNote}</div>
       </div>
       <div class="metric-card">
         <div class="mlabel">ポジション総額</div>
         <div class="mvalue">${totalPos > 0 ? fmt(totalPos) : '−'}</div>
-        <div class="msub">現物時価 + 建代金B</div>
+        <div class="msub">現物時価 + 建代金B${gainNote}</div>
       </div>`;
     try {
-      localStorage.setItem(SBI_KEY, JSON.stringify({ A, C, B, S }));
+      localStorage.setItem(SBI_KEY, JSON.stringify({ A, C, B, S, gain }));
     } catch(e) {}
   }
 
@@ -771,21 +786,75 @@
       const raw = localStorage.getItem(SBI_KEY);
       if (raw) {
         const d = JSON.parse(raw);
-        document.getElementById('sbiA').value = d.A ?? '';
-        document.getElementById('sbiC').value = d.C ?? '';
-        document.getElementById('sbiB').value = d.B ?? '';
-        document.getElementById('sbiStock').value = d.S ?? '';
+        document.getElementById('sbiA').value     = d.A    ?? '';
+        document.getElementById('sbiC').value     = d.C    ?? '';
+        document.getElementById('sbiB').value     = d.B    ?? '';
+        document.getElementById('sbiStock').value = d.S    ?? '';
+        document.getElementById('sbiGain').value  = d.gain ?? '';
       }
     } catch(e) {}
     calcSbi();
     calc();
   }
 
-  document.querySelectorAll('#sbiA, #sbiC, #sbiB, #sbiStock').forEach(el => {
+  document.querySelectorAll('#sbiA, #sbiC, #sbiB, #sbiStock, #sbiGain').forEach(el => {
     el.addEventListener('input', () => { calcSbi(); calc(); });
   });
 
+  // ===== レバレッジ履歴 =====
+  const LEV_HIST_KEY = 'margin-lev-hist-v1';
+  let levHistory = [];
+
+  function loadLevHistory() {
+    try {
+      const raw = localStorage.getItem(LEV_HIST_KEY);
+      if (raw) levHistory = JSON.parse(raw);
+    } catch(e) {}
+    renderLevHistory();
+  }
+
+  function saveLevHistory() {
+    try { localStorage.setItem(LEV_HIST_KEY, JSON.stringify(levHistory)); } catch(e) {}
+  }
+
+  function renderLevHistory() {
+    const sel = document.getElementById('lev-history-select');
+    const cur = sel.value;
+    sel.innerHTML = levHistory.length === 0
+      ? '<option value="">── 履歴なし ──</option>'
+      : levHistory.map((r, i) =>
+          `<option value="${i}">${r.date}　${r.lev}倍</option>`
+        ).join('');
+    // 選択を復元
+    if (cur !== '' && sel.querySelector(`option[value="${cur}"]`)) sel.value = cur;
+  }
+
+  document.getElementById('lev-save-btn').addEventListener('click', () => {
+    if (lastLeverage === null) return;
+    const lev = lastLeverage;
+    const today = new Date().toISOString().split('T')[0];
+    levHistory.push({ date: today, lev: lev.toFixed(2) });
+    // 日付順に並べる
+    levHistory.sort((a, b) => a.date.localeCompare(b.date));
+    saveLevHistory();
+    renderLevHistory();
+    // 追加した項目を選択状態に
+    const sel = document.getElementById('lev-history-select');
+    const idx = levHistory.findIndex(r => r.date === today && r.lev === lev.toFixed(2));
+    if (idx >= 0) sel.value = idx;
+  });
+
+  document.getElementById('lev-del-btn').addEventListener('click', () => {
+    const sel = document.getElementById('lev-history-select');
+    const idx = parseInt(sel.value);
+    if (isNaN(idx) || sel.value === '') return;
+    levHistory.splice(idx, 1);
+    saveLevHistory();
+    renderLevHistory();
+  });
+
   loadSbi();
+  loadLevHistory();
 
   // ===== 週次トラッキング =====
   const TRACK_KEY = 'margin-track-v1';
