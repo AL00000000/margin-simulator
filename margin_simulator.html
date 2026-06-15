@@ -789,17 +789,23 @@
 
   // ===== 週次トラッキング =====
   const TRACK_KEY = 'margin-track-v1';
-  const TRACK_WEEKS = 10;
   let trackRows = [];
+
+  // 比較対象の定義（3つ固定）
+  const COMPARE_DEFS = [
+    { label: 'No.1比', getRef: (i, rows) => i > 0 ? rows[0] : null },
+    { label: 'No.2比', getRef: (i, rows) => i > 1 ? rows[1] : null },
+    { label: '1つ前比', getRef: (i, rows) => i > 0 ? rows[i - 1] : null },
+  ];
 
   function buildTrackHead() {
     const head = document.getElementById('tracking-head');
     let r1 = '<tr><th rowspan="2">No.</th><th rowspan="2">日付</th><th rowspan="2">銘柄A<br>株価</th><th rowspan="2">自分の<br>資産（万円）</th>';
     let r2 = '<tr>';
-    for (let w = 1; w <= TRACK_WEEKS; w++) {
-      r1 += `<th colspan="2" class="week-head">${w}つ前比</th>`;
+    COMPARE_DEFS.forEach(def => {
+      r1 += `<th colspan="2" class="week-head">${def.label}</th>`;
       r2 += '<th>株価率</th><th>資産率</th>';
-    }
+    });
     r1 += '<th rowspan="2"></th></tr>';
     r2 += '</tr>';
     head.innerHTML = r1 + r2;
@@ -830,12 +836,12 @@
         <td><input type="date" value="${row.date || ''}" class="tr-input" data-i="${i}" data-f="date"></td>
         <td><input type="number" value="${row.price ?? ''}" class="tr-input" data-i="${i}" data-f="price" step="1" min="0" placeholder="0"></td>
         <td><input type="number" value="${row.assets ?? ''}" class="tr-input" data-i="${i}" data-f="assets" step="1" min="0" placeholder="0"></td>`;
-      for (let w = 1; w <= TRACK_WEEKS; w++) {
-        const prev = trackRows[i - w];
-        const pr = (prev?.price && row.price)   ? (row.price  - prev.price)  / prev.price  * 100 : null;
-        const ar = (prev?.assets && row.assets) ? (row.assets - prev.assets) / prev.assets * 100 : null;
+      COMPARE_DEFS.forEach(def => {
+        const ref = def.getRef(i, trackRows);
+        const pr = (ref?.price && row.price)   ? (row.price  - ref.price)  / ref.price  * 100 : null;
+        const ar = (ref?.assets && row.assets) ? (row.assets - ref.assets) / ref.assets * 100 : null;
         cells += `<td>${fmtRate(pr)}</td><td>${fmtRate(ar)}</td>`;
-      }
+      });
       cells += `<td><button class="del-track" data-i="${i}">×</button></td>`;
       tbody.innerHTML += `<tr>${cells}</tr>`;
     });
