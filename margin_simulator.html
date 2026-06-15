@@ -368,9 +368,10 @@
   <div class="summary-grid" id="sbi-summary"></div>
   <div id="lev-history-wrap" style="margin-top:0.8rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
     <button id="lev-save-btn" style="padding:4px 10px;font-size:12px;cursor:pointer">記録する</button>
-    <select id="lev-history-select" style="font-size:12px;padding:3px 6px;min-width:220px">
+    <select id="lev-history-select" style="font-size:12px;padding:3px 6px;min-width:260px">
       <option value="">── 履歴なし ──</option>
     </select>
+    <span id="lev-hist-count" style="font-size:11px;color:var(--text3)"></span>
     <button id="lev-del-btn" style="padding:4px 8px;font-size:12px;cursor:pointer;color:var(--danger)">削除</button>
   </div>
 
@@ -808,7 +809,12 @@
   function loadLevHistory() {
     try {
       const raw = localStorage.getItem(LEV_HIST_KEY);
-      if (raw) levHistory = JSON.parse(raw);
+      if (raw) {
+        levHistory = JSON.parse(raw).map(r => ({
+          ts:  r.ts ?? r.date ?? '(日時不明)',
+          lev: r.lev,
+        }));
+      }
     } catch(e) {}
     renderLevHistory();
   }
@@ -818,30 +824,36 @@
   }
 
   function renderLevHistory() {
-    const sel = document.getElementById('lev-history-select');
-    const cur = sel.value;
-    sel.innerHTML = levHistory.length === 0
-      ? '<option value="">── 履歴なし ──</option>'
-      : levHistory.map((r, i) =>
-          `<option value="${i}">${r.date}　${r.lev}倍</option>`
-        ).join('');
-    // 選択を復元
-    if (cur !== '' && sel.querySelector(`option[value="${cur}"]`)) sel.value = cur;
+    const sel   = document.getElementById('lev-history-select');
+    const count = document.getElementById('lev-hist-count');
+    const cur   = sel.value;
+    if (levHistory.length === 0) {
+      sel.innerHTML = '<option value="">── 履歴なし ──</option>';
+      count.textContent = '';
+    } else {
+      sel.innerHTML = levHistory.map((r, i) =>
+        `<option value="${i}">${r.ts}　${r.lev}倍</option>`
+      ).join('');
+      count.textContent = `${levHistory.length}件`;
+      if (cur !== '' && sel.querySelector(`option[value="${cur}"]`)) sel.value = cur;
+    }
   }
 
   document.getElementById('lev-save-btn').addEventListener('click', () => {
     if (lastLeverage === null) return;
-    const lev = lastLeverage;
-    const today = new Date().toISOString().split('T')[0];
-    levHistory.push({ date: today, lev: lev.toFixed(2) });
-    // 日付順に並べる
-    levHistory.sort((a, b) => a.date.localeCompare(b.date));
+    const now = new Date();
+    // 表示用タイムスタンプ: "2026-06-16 14:32"
+    const ts = now.getFullYear() + '-'
+      + String(now.getMonth() + 1).padStart(2, '0') + '-'
+      + String(now.getDate()).padStart(2, '0') + ' '
+      + String(now.getHours()).padStart(2, '0') + ':'
+      + String(now.getMinutes()).padStart(2, '0');
+    levHistory.push({ ts, lev: lastLeverage.toFixed(2) });
     saveLevHistory();
     renderLevHistory();
-    // 追加した項目を選択状態に
+    // 追加したばかりの項目（最後）を選択状態に
     const sel = document.getElementById('lev-history-select');
-    const idx = levHistory.findIndex(r => r.date === today && r.lev === lev.toFixed(2));
-    if (idx >= 0) sel.value = idx;
+    sel.value = levHistory.length - 1;
   });
 
   document.getElementById('lev-del-btn').addEventListener('click', () => {
